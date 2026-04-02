@@ -94,20 +94,19 @@ async def resume_strategy(project_id: str, body: ResumeStrategyRequest):
 
     if body.approved:
         # CEO 승인 → build 노드 진입 (interrupt ① 해제)
-        update = {"ceo_feedback": None}
         retried = False
         logger.info("[/resume/strategy] project_id=%s approved=true", project_id)
     else:
-        # CEO 거절 → strategy 재실행
-        update = {"ceo_feedback": body.feedback}
+        # CEO 거절 → ceo_feedback 주입 후 strategy 재실행
         retried = True
         logger.info(
             "[/resume/strategy] project_id=%s approved=false feedback=%s",
             project_id,
             body.feedback[:40] if body.feedback else "",
         )
+        graph.update_state(config, {"ceo_feedback": body.feedback})
 
-    result = await graph.ainvoke(update, config=config)
+    result = await graph.ainvoke(None, config=config)
 
     response = {
         "project_id": project_id,
@@ -136,11 +135,11 @@ async def resume_deploy(project_id: str, body: ResumeDeployRequest):
 
     graph = get_graph()
     config = {"configurable": {"thread_id": project_id}}
-    update = {"payment_done": True}
 
     logger.info("[/resume/deploy] project_id=%s", project_id)
 
-    result = await graph.ainvoke(update, config=config)
+    graph.update_state(config, {"payment_done": True})
+    result = await graph.ainvoke(None, config=config)
 
     return {
         "project_id": project_id,

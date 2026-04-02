@@ -13,16 +13,27 @@ logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────
 # Checkpointer 추상화
-# Day 3: ENV=prod 분기에서 PostgresSaver로 교체
+# ENV=dev  → MemorySaver
+# ENV=prod → PostgresSaver (Supabase), 실패 시 MemorySaver 폴백
 # ──────────────────────────────────────────
 def get_checkpointer():
     env = os.getenv("ENV", "dev")
     if env == "dev":
         return MemorySaver()
-    # Day 3 교체 예정:
-    # from langgraph.checkpoint.postgres import PostgresSaver
-    # return PostgresSaver(os.getenv("SUPABASE_DB_URL"))
-    return MemorySaver()
+
+    try:
+        from langgraph.checkpoint.postgres import PostgresSaver
+        db_url = os.getenv("SUPABASE_DB_URL")
+        if not db_url:
+            raise ValueError("SUPABASE_DB_URL 환경변수가 설정되지 않았습니다.")
+        checkpointer = PostgresSaver.from_conn_string(db_url)
+        checkpointer.setup()   # checkpoints 테이블 자동 생성
+        logger.info("[checkpointer] PostgresSaver 초기화 완료")
+        return checkpointer
+    except Exception as e:
+        logger.error("[checkpointer] Postgres 연결 실패: %s", str(e))
+        logger.warning("[checkpointer] MemorySaver로 폴백합니다.")
+        return MemorySaver()
 
 
 # ──────────────────────────────────────────
