@@ -11,7 +11,10 @@ import {
 import "@xyflow/react/dist/style.css"
 import AgentNode from "./AgentNode"
 import AnimatedEdge from "./edges/AnimatedEdge"
+import AgentChat from "./AgentChat"
 import { buildInitialNodes, buildInitialEdges } from "@/lib/canvas/nodeConfig"
+import { useProjectStore } from "@/store/projectStore"
+import { useSSE } from "@/lib/sse/useSSE"
 import type { AgentNodeData } from "./AgentNode"
 import type { Node } from "@xyflow/react"
 
@@ -19,11 +22,13 @@ const nodeTypes = { agentNode: AgentNode }
 const edgeTypes = { animatedEdge: AnimatedEdge }
 
 export default function CanvasBoard() {
-  const nodes = useMemo(() => buildInitialNodes(), [])
-  const edges = useMemo(() => buildInitialEdges(), [])
+  const nodes     = useMemo(() => buildInitialNodes(), [])
+  const edges     = useMemo(() => buildInitialEdges(), [])
+  const projectId = useProjectStore((s) => s.projectId)
+  useSSE(projectId)
 
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "var(--navy)" }}>
+    <div style={{ width: "100vw", height: "100vh", background: "var(--navy)", position: "relative" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -53,6 +58,8 @@ export default function CanvasBoard() {
           }
         />
       </ReactFlow>
+
+      <AgentChat />
     </div>
   )
 }
