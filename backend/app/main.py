@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from graph.builder import get_graph
 from api.stream import router as stream_router
+from api.interview import router as interview_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(stream_router)
+app.include_router(interview_router)
 
 
 # ──────────────────────────────────────────
@@ -34,6 +36,7 @@ app.include_router(stream_router)
 class RunRequest(BaseModel):
     idea: str
     user_id: Optional[str] = None
+    interview_answers: list[dict] = []
 
 
 class ResumeStrategyRequest(BaseModel):
@@ -62,7 +65,7 @@ async def run(body: RunRequest):
         "current_node": "intake",
         "logs": [],
         "build_errors": [],
-        "interview_answers": [],
+        "interview_answers": body.interview_answers,
         "strategy_retry_count": 0,
         "build_retry_count": 0,
         "payment_done": False,

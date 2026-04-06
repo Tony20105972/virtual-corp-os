@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     # LLM
     OPENAI_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
 
     # Supabase
     SUPABASE_URL: str = ""

@@ -11,7 +11,9 @@ import {
 import "@xyflow/react/dist/style.css"
 import AgentNode from "./AgentNode"
 import AnimatedEdge from "./edges/AnimatedEdge"
-import AgentChat from "./AgentChat"
+import AgentChat      from "./AgentChat"
+import MagicBar       from "./MagicBar"
+import AIInterviewer  from "./AIInterviewer"
 import { buildInitialNodes, buildInitialEdges } from "@/lib/canvas/nodeConfig"
 import { useProjectStore } from "@/store/projectStore"
 import { useSSE } from "@/lib/sse/useSSE"
@@ -60,6 +62,8 @@ export default function CanvasBoard() {
       </ReactFlow>
 
       <AgentChat />
+      <MagicBar />
+      <AIInterviewer />
     </div>
   )
 }
