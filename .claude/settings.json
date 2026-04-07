@@ -5,7 +5,13 @@
       "Bash(curl -s -X POST http://localhost:8000/interview/questions -H 'Content-Type: application/json' -d '{\"idea\": \"AI travel planner for busy professionals\"}')",
       "Bash(python3 -m json.tool)",
       "Bash(curl -v -X POST http://localhost:8000/interview/questions -H 'Content-Type: application/json' -d '{\"idea\": \"AI travel planner for busy professionals\"}')",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('project_id:', d.get\\('project_id','MISSING'\\)\\)\")"
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('project_id:', d.get\\('project_id','MISSING'\\)\\)\")",
+      "Bash(ln -sf /Users/gimdohyeon/virtual-corp-os/.env /Users/gimdohyeon/virtual-corp-os/backend/.env)",
+      "Bash(grep -r \"load_dotenv\\\\|python-dotenv\\\\|dotenv\" /Users/gimdohyeon/virtual-corp-os/backend/requirements*.txt)",
+      "Bash(ls /Users/gimdohyeon/virtual-corp-os/backend/requirements*.txt)",
+      "Bash(lsof -i :8000 -sTCP:LISTEN)",
+      "Bash(curl -s -X POST http://localhost:8000/run -H 'Content-Type: application/json' -d '{:*)",
+      "WebSearch"
     ]
   }
 }

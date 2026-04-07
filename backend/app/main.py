@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from graph.builder import get_graph
 from api.stream import router as stream_router
 from api.interview import router as interview_router
+from core.supabase_client import get_supabase_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -83,6 +84,19 @@ async def run(body: RunRequest):
     }
 
     logger.info("[/run] project_id=%s idea=%s", project_id, body.idea[:50])
+
+    # Supabase에 프로젝트 row 생성 (strategy_node의 UPDATE가 동작하려면 row가 먼저 필요)
+    try:
+        db = get_supabase_client()
+        db.table("projects").insert({
+            "project_id": project_id,
+            "user_id": body.user_id,
+            "raw_idea": body.idea,
+            "current_node": "intake",
+        }).execute()
+        logger.info("[/run] Supabase project row 생성 완료 project_id=%s", project_id)
+    except Exception as e:
+        logger.error("[/run] Supabase insert 실패 (파이프라인 계속 진행) error=%s", str(e))
 
     result = await graph.ainvoke(initial_state, config=config)
 

@@ -10,27 +10,20 @@ ENV=dev  → 저렴한 모델 (DeepSeek Free, MiniMax, Gemini Flash)
 ENV=prod → Claude Sonnet 4.6 + 프롬프트 캐싱
 """
 
-import os
 import logging
 from dataclasses import dataclass
 from openai import AsyncOpenAI
+from core.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
 # ── 노드별 모델 매핑 ─────────────────────────────────────────────────
-MODELS_DEV: dict[str, str] = {
-    "intake":   "minimax/minimax-m2",
-    "strategy": "deepseek/deepseek-chat-v3-0324:free",
-    "build":    "deepseek/deepseek-chat-v3-0324:free",
-    "deploy":   "google/gemini-flash-1.5",
-}
-
-MODELS_PROD: dict[str, str] = {
-    "intake":   "minimax/minimax-m2",
-    "strategy": "anthropic/claude-sonnet-4-6",
-    "build":    "anthropic/claude-sonnet-4-6",
-    "deploy":   "google/gemini-flash-1.5",
+MODELS: dict[str, str] = {
+    "intake":   "anthropic/claude-haiku-4.5",
+    "strategy": "anthropic/claude-haiku-4.5",
+    "build":    "anthropic/claude-sonnet-4.6",
+    "deploy":   "anthropic/claude-haiku-4.5",
 }
 
 # ── 노드별 max_tokens 상한 (절대 초과 금지) ──────────────────────────
@@ -43,9 +36,8 @@ MAX_TOKENS: dict[str, int] = {
 
 # ── 캐싱 지원 모델 (Anthropic 공식 지원 모델만) ────────────────────────
 CACHE_SUPPORTED_MODELS = {
-    "anthropic/claude-sonnet-4-6",
-    "anthropic/claude-opus-4-6",
-    "anthropic/claude-haiku-4-5",
+    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-haiku-4.5",
 }
 
 # ── 모델별 단가 (per 1M tokens, USD) ──────────────────────────────────
@@ -58,7 +50,7 @@ PRICE_PER_1M: dict[str, dict] = {
         "input": 0.10, "output": 0.10,
         "cache_read": 0.10, "cache_write": 0.10,
     },
-    "deepseek/deepseek-chat-v3-0324:free": {
+    "deepseek/deepseek-v3.2:free": {
         "input": 0.00, "output": 0.00,
         "cache_read": 0.00, "cache_write": 0.00,
     },
@@ -86,7 +78,7 @@ _client: AsyncOpenAI | None = None
 def get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        api_key = os.getenv("OPENROUTER_API_KEY")
+        api_key = settings.OPENROUTER_API_KEY
         if not api_key:
             raise ValueError(
                 "OPENROUTER_API_KEY가 설정되지 않았습니다. "
@@ -101,11 +93,8 @@ def get_client() -> AsyncOpenAI:
 
 
 def get_model(node: str) -> str:
-    """ENV에 따라 노드별 모델 반환 (미설정 시 dev 폴백)"""
-    env = os.getenv("ENV", "dev")
-    models = MODELS_PROD if env == "prod" else MODELS_DEV
-    model = models.get(node, MODELS_DEV["intake"])
-    logger.info("[llm_client] node=%s env=%s model=%s", node, env, model)
+    model = MODELS.get(node, MODELS["intake"])
+    logger.info("[llm_client] node=%s model=%s", node, model)
     return model
 
 
