@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from typing import Optional
@@ -10,6 +11,7 @@ from graph.builder import get_graph
 from api.stream import router as stream_router
 from api.interview import router as interview_router
 from core.supabase_client import get_supabase_client
+from core.queue_store import project_queues
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,7 +59,16 @@ class ResumeDeployRequest(BaseModel):
 async def run(body: RunRequest):
     graph = get_graph()
     project_id = str(uuid.uuid4())
-    config = {"configurable": {"thread_id": project_id}}
+
+    # 프로젝트 레벨 SSE 큐 생성 (strategy_node → stream 엔드포인트로 전달)
+    project_queues[project_id] = asyncio.Queue(maxsize=100)
+
+    config = {
+        "configurable": {
+            "thread_id": project_id,
+            "log_queue": project_queues[project_id],
+        }
+    }
 
     initial_state = {
         "project_id": project_id,
