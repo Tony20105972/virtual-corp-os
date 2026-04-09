@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import type { NodeId } from "@/lib/canvas/nodeConfig"
+import type { PRDJSON } from "@/types/project"
 
 export type NodeStatus = "idle" | "processing" | "done" | "error"
 
@@ -15,6 +16,17 @@ interface ProjectStore {
   // 프로젝트 메타 (Day 6에서 채워짐)
   projectId: string | null
   setProjectId: (id: string) => void
+
+  // Strategy 결과물
+  prd_json: PRDJSON | null
+  setPrdJson: (prd: PRDJSON | null) => void
+
+  // Day 10: Canvas Modal State
+  canvasModalOpen: boolean
+  selectedCanvasNode: keyof PRDJSON | null
+  openCanvasModal: () => void
+  closeCanvasModal: () => void
+  selectCanvasNode: (nodeId: keyof PRDJSON | null) => void
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -37,4 +49,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   projectId: null,
   setProjectId: (id) => set({ projectId: id }),
+
+  prd_json: null,
+  setPrdJson: (prd) => set({ prd_json: prd }),
+
+  canvasModalOpen: false,
+  selectedCanvasNode: null,
+  openCanvasModal: () => set({ canvasModalOpen: true }),
+  closeCanvasModal: () =>
+    set({
+      canvasModalOpen: false,
+      selectedCanvasNode: null,
+    }),
+  selectCanvasNode: (nodeId) => set({ selectedCanvasNode: nodeId }),
 }))

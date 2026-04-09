@@ -1,11 +1,10 @@
 import { create } from "zustand"
 
 export interface ChatMessage {
-  id:        string
-  from:      string
-  to:        string
-  message:   string
-  timestamp: string
+  id:      string
+  agent:   string
+  level:   "info" | "success" | "warn" | "error"
+  message: string
 }
 
 interface ChatStore {

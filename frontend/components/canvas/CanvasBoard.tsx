@@ -14,6 +14,7 @@ import AnimatedEdge from "./edges/AnimatedEdge"
 import AgentChat      from "./AgentChat"
 import MagicBar       from "./MagicBar"
 import AIInterviewer  from "./AIInterviewer"
+import CanvasModal from "@/components/strategy/CanvasModal"
 import { buildInitialNodes, buildInitialEdges } from "@/lib/canvas/nodeConfig"
 import { useProjectStore } from "@/store/projectStore"
 import { useSSE } from "@/lib/sse/useSSE"
@@ -64,6 +65,7 @@ export default function CanvasBoard() {
       <AgentChat />
       <MagicBar />
       <AIInterviewer />
+      <CanvasModal />
     </div>
   )
 }

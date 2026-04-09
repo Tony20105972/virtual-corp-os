@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --font-syne-fallback: "Syne", sans-serif;
+  --font-dm-mono-fallback: "DM Mono", monospace;
   /* Base */
   --navy:    #0A0F1E;
   --navy2:   #0F1829;

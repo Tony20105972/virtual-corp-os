@@ -68,6 +68,7 @@ function StatusIcon({ status }: { status: NodeStatus }) {
 const AgentNode = memo(({ data }: NodeProps<AgentNodeType>) => {
   const status = useProjectStore((s) => s.nodeStatuses[data.id])
   const cycleNodeStatus = useProjectStore((s) => s.cycleNodeStatus)
+  const openCanvasModal = useProjectStore((s) => s.openCanvasModal)
   const style = getStatusStyle(status, data.color)
 
   return (
@@ -173,6 +174,43 @@ const AgentNode = memo(({ data }: NodeProps<AgentNodeType>) => {
         >
           {status}
         </div>
+
+        {data.id === "strategy" && status === "done" ? (
+          <motion.button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              openCanvasModal()
+            }}
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: -14,
+              transform: "translateX(-50%)",
+              border: "1px solid rgba(147,197,253,0.45)",
+              borderRadius: 999,
+              background: "linear-gradient(135deg, rgba(59,130,246,0.96), rgba(96,165,250,0.96))",
+              color: "#EFF6FF",
+              padding: "6px 12px",
+              fontFamily: "'DM Mono', monospace",
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: "0 10px 24px rgba(59,130,246,0.32)",
+            }}
+            animate={{
+              boxShadow: [
+                "0 10px 24px rgba(59,130,246,0.24)",
+                "0 14px 32px rgba(59,130,246,0.42)",
+                "0 10px 24px rgba(59,130,246,0.24)",
+              ],
+            }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+          >
+            📊 보고서 보기
+          </motion.button>
+        ) : null}
       </div>
 
       <Handle id="right"  type="source" position={Position.Right}  style={{ opacity: 0 }} />

@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react"
 import { useProjectStore } from "@/store/projectStore"
 import { useChatStore }    from "@/store/chatStore"
-import type { NodeId, NodeStatus } from "@/lib/canvas/nodeConfig"
+import type { NodeId } from "@/lib/canvas/nodeConfig"
+import type { NodeStatus } from "@/store/projectStore"
 
 const API_URL     = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 const MAX_RETRY   = 5
@@ -37,10 +38,9 @@ export function useSSE(projectId: string | null) {
 
             case "log":
               addMessage({
-                from:      event.from,
-                to:        event.to,
-                message:   event.message,
-                timestamp: event.timestamp,
+                agent:   event.agent,
+                level:   event.level,
+                message: event.message,
               })
               break
 
@@ -79,5 +79,5 @@ export function useSSE(projectId: string | null) {
       esRef.current?.close()
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [projectId])
+  }, [addMessage, projectId, setNodeStatus])
 }

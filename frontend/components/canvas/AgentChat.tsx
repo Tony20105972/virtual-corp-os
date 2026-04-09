@@ -11,26 +11,13 @@ const AGENT_COLORS: Record<string, string> = {
 }
 
 function MessageRow({ msg }: { msg: ChatMessage }) {
-  const color = AGENT_COLORS[msg.from] ?? "#94A3B8"
-  const toAll = msg.to === "ALL"
+  const color = AGENT_COLORS[msg.agent] ?? "#94A3B8"
 
   return (
     <div style={{ marginBottom: 8, lineHeight: 1.5 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: "#64748B" }}>
-          [{msg.timestamp}]
-        </span>
         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color, fontWeight: 500 }}>
-          {msg.from}
-        </span>
-        <span style={{ fontSize: 10, color: "#64748B" }}>→</span>
-        <span style={{
-          fontFamily: "'DM Mono', monospace",
-          fontSize:   11,
-          color:      toAll ? "#F8FAFC" : (AGENT_COLORS[msg.to] ?? "#94A3B8"),
-          fontWeight: toAll ? 700 : 400,
-        }}>
-          {msg.to}
+          {msg.agent}:
         </span>
       </div>
       <div style={{

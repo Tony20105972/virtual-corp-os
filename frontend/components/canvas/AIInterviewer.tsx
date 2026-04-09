@@ -40,6 +40,7 @@ export default function AIInterviewer() {
   } = useInterviewStore()
 
   const setProjectId = useProjectStore((s) => s.setProjectId)
+  const setPrdJson = useProjectStore((s) => s.setPrdJson)
 
   const [answerInput,   setAnswerInput]   = useState("")
   const [showReaction,  setShowReaction]  = useState(false)
@@ -97,6 +98,7 @@ export default function AIInterviewer() {
         })
         const data = await res.json()
         setProjectId(data.project_id)
+        setPrdJson(data.prd_json ?? null)
         setStatus("done")
       } catch (err) {
         console.error("[AIInterviewer] /run 실패:", err)
