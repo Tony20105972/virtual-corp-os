@@ -30,7 +30,8 @@ export const useInterviewStore = create<InterviewStore>((set, get) => ({
   currentQ:  0,
 
   setIdea:      (idea) => set({ idea }),
-  setQuestions: (qs)   => set({ questions: qs, status: "questioning", currentQ: 0 }),
+  setQuestions: (qs)   =>
+    set({ questions: qs, answers: [], status: "questioning", currentQ: 0 }),
   addAnswer:    (a)    => set((s) => ({ answers: [...s.answers, a] })),
   nextQuestion: ()     => set((s) => ({ currentQ: s.currentQ + 1 })),
   setStatus:    (s)    => set({ status: s }),

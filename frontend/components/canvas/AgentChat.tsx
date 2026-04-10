@@ -2,13 +2,22 @@
 
 import { useEffect, useRef } from "react"
 import { useChatStore, type ChatMessage } from "@/store/chatStore"
+import { useInterviewStore } from "@/store/interviewStore"
 
 const AGENT_COLORS: Record<string, string> = {
   Alex:   "#3B82F6",
   Jamie:  "#10B981",
   Sam:    "#F59E0B",
+  Aria:   "#8B5CF6",
   System: "#94A3B8",
 }
+
+const PREVIEW_LINES = [
+  { agent: "Alex", message: "Positioning defined. I am turning the brief into strategy." },
+  { agent: "Jamie", message: "Landing page architecture is ready for a first build." },
+  { agent: "Sam", message: "QA checkpoints are mapped before anything ships." },
+  { agent: "Aria", message: "Launch copy is tuned for clarity, speed, and trust." },
+]
 
 function MessageRow({ msg }: { msg: ChatMessage }) {
   const color = AGENT_COLORS[msg.agent] ?? "#94A3B8"
@@ -35,46 +44,43 @@ function MessageRow({ msg }: { msg: ChatMessage }) {
 
 export default function AgentChat() {
   const messages  = useChatStore((s) => s.messages)
+  const status = useInterviewStore((s) => s.status)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  const visibleMessages =
+    messages.length > 0
+      ? messages
+      : PREVIEW_LINES.map((line, index) => ({
+          id: `preview-${index}`,
+          level: "info" as const,
+          agent: line.agent,
+          message: line.message,
+        }))
+
   return (
-    <div style={{
-      position:       "absolute",
-      bottom:         80,
-      right:          16,
-      width:          280,
-      height:         220,
-      background:     "rgba(10, 15, 30, 0.88)",
-      backdropFilter: "blur(12px)",
-      border:         "1px solid rgba(255,255,255,0.08)",
-      borderRadius:   10,
-      zIndex:         10,
-      display:        "flex",
-      flexDirection:  "column",
-      overflow:       "hidden",
-    }}>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
       <div style={{
-        padding:       "8px 12px",
-        borderBottom:  "1px solid rgba(255,255,255,0.06)",
-        fontFamily:    "'DM Mono', monospace",
-        fontSize:      10,
+        padding: "18px 20px 14px",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        fontFamily: "'DM Mono', monospace",
+        fontSize: 10,
         letterSpacing: "0.12em",
-        color:         "#64748B",
+        color: "#64748B",
       }}>
-        AGENT CHAT
+        {status === "done" ? "AGENT FEED" : "YOUR AI BOARDROOM"}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
-        {messages.length === 0 && (
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px 20px", minHeight: 0 }}>
+        {messages.length === 0 && status === "done" ? (
           <div style={{ fontSize: 11, color: "#64748B", fontFamily: "'DM Mono', monospace" }}>
             Waiting for agents...
           </div>
-        )}
-        {messages.map((msg) => (
+        ) : null}
+        {visibleMessages.map((msg) => (
           <MessageRow key={msg.id} msg={msg} />
         ))}
         <div ref={bottomRef} />

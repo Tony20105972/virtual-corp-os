@@ -41,7 +41,7 @@ export const CanvasNode = memo(function CanvasNode({
         duration: 0.3,
         ease: [0.4, 0, 0.2, 1],
       }}
-      whileHover={{ scale: 1.05, boxShadow: "0 18px 36px rgba(10, 15, 30, 0.24)" }}
+      whileHover={{ scale: 1.015, boxShadow: "0 18px 36px rgba(10, 15, 30, 0.24)" }}
       whileTap={{ scale: 0.98 }}
       onClick={() => selectCanvasNode(config.id)}
       data-testid={`canvas-node-${config.id}`}

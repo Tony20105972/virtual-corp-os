@@ -22,12 +22,12 @@
   max-height: min(88vh, 920px);
   transform: translate(-50%, -50%);
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: 28px;
   overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 28%),
     radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), transparent 24%),
-    linear-gradient(180deg, rgba(21, 31, 53, 0.98), rgba(10, 15, 30, 0.98));
+    linear-gradient(180deg, rgba(14, 21, 37, 0.98), rgba(8, 13, 24, 0.98));
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
 }
 
@@ -96,8 +96,8 @@
 .gridContainer {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(150px, 1fr));
-  gap: 16px;
+  grid-template-rows: repeat(3, minmax(142px, 1fr));
+  gap: 12px;
   flex: 1;
   padding: 24px 32px 28px;
   min-height: 0;
@@ -109,29 +109,31 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 10px;
-  padding: 18px;
+  gap: 12px;
+  padding: 18px 18px 20px;
   border: 1px solid;
-  border-radius: 18px;
+  border-radius: 22px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
-    rgba(10, 15, 30, 0.72);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    rgba(8, 13, 24, 0.78);
   color: #f8fafc;
   text-align: left;
   cursor: pointer;
   overflow: hidden;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease,
+    transform 0.15s ease;
 }
 
 .canvasNode:hover {
-  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(2, 6, 23, 0.3);
 }
 
 .selected {
   border-width: 2px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
-    rgba(10, 15, 30, 0.82);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+    rgba(8, 13, 24, 0.88);
 }
 
 .nodeGroup {
@@ -150,16 +152,16 @@
 .nodeLabel {
   margin: 0;
   font-family: "Syne", sans-serif;
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   line-height: 1.15;
   color: #f8fafc;
 }
 
 .nodeContent {
   margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.65;
-  color: #cbd5e1;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: #d4deea;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -179,7 +181,7 @@
   top: 0;
   bottom: 0;
   width: min(360px, 38vw);
-  padding: 24px;
+  padding: 24px 24px 28px;
   border-left: 1px solid var(--line);
   background:
     linear-gradient(180deg, rgba(15, 24, 41, 0.98), rgba(10, 15, 30, 0.98));
@@ -235,14 +237,14 @@
   line-height: 1.7;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--slate);
+  color: #93a3b8;
 }
 
 .sidePanelText {
   white-space: pre-wrap;
   color: #e2e8f0;
-  font-size: 0.96rem;
-  line-height: 1.9;
+  font-size: 1rem;
+  line-height: 1.95;
 }
 
 .actionButtons {
@@ -255,8 +257,8 @@
 
 .buttonSecondary,
 .buttonPrimary {
-  min-width: 140px;
-  padding: 12px 18px;
+  min-width: 160px;
+  padding: 13px 18px;
   border-radius: 999px;
   font-family: "DM Mono", monospace;
   font-size: 0.78rem;
