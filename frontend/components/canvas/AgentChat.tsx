@@ -46,9 +46,12 @@ export default function AgentChat() {
   const messages  = useChatStore((s) => s.messages)
   const status = useInterviewStore((s) => s.status)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    const list = listRef.current
+    if (!list) return
+    list.scrollTop = list.scrollHeight
   }, [messages])
 
   const visibleMessages =
@@ -74,7 +77,10 @@ export default function AgentChat() {
         {status === "done" ? "AGENT FEED" : "YOUR AI BOARDROOM"}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px 20px", minHeight: 0 }}>
+      <div
+        ref={listRef}
+        style={{ flex: 1, overflowY: "auto", padding: "16px 18px 20px", minHeight: 0 }}
+      >
         {messages.length === 0 && status === "done" ? (
           <div style={{ fontSize: 11, color: "#64748B", fontFamily: "'DM Mono', monospace" }}>
             Waiting for agents...

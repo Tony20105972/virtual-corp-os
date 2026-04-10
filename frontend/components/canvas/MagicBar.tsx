@@ -55,25 +55,11 @@ export default function MagicBar({
     <div
       className={className}
       style={{
-        width: compact ? "min(520px, 100%)" : "min(720px, 100%)",
+        width: compact ? "min(520px, 100%)" : "min(48rem, 100%)",
       }}
     >
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: compact ? 10 : 14,
-          width: "100%",
-          padding: compact ? "10px 12px" : "16px 18px",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: compact ? 18 : 24,
-          background: compact ? "rgba(12, 18, 32, 0.82)" : "rgba(12, 18, 32, 0.9)",
-          backdropFilter: "blur(16px)",
-          boxShadow: compact
-            ? "0 16px 32px rgba(0,0,0,0.18)"
-            : "0 24px 50px rgba(0,0,0,0.24)",
-          boxSizing: "border-box",
-        }}
+        className={`${styles.magicBarFrame} ${compact ? styles.magicBarFrameCompact : ""}`}
       >
         <span
           style={{
@@ -96,46 +82,18 @@ export default function MagicBar({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           placeholder={compact ? "Start a new company brief..." : "Describe your next company idea..."}
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            color: "#E2E8F0",
-            fontSize: compact ? 13 : 15,
-            fontFamily: "'Pretendard', sans-serif",
-          }}
+          className={`${styles.magicBarInput} ${compact ? styles.magicBarInputCompact : ""}`}
         />
         <button
           onClick={handleSubmit}
-          style={{
-            width: compact ? 36 : 42,
-            height: compact ? 36 : 42,
-            borderRadius: compact ? 12 : 14,
-            background: "linear-gradient(135deg, var(--blue), #60a5fa)",
-            border: "none",
-            cursor: "pointer",
-            color: "#fff",
-            fontSize: compact ? 15 : 18,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
+          className={`${styles.magicBarButton} ${compact ? styles.magicBarButtonCompact : ""}`}
         >
           ↑
         </button>
       </div>
 
       {!compact ? (
-        <div
-          className={styles.eyebrow}
-          style={{
-            marginTop: 12,
-            textAlign: "left",
-            color: "rgba(148, 163, 184, 0.86)",
-          }}
-        >
+        <div className={`${styles.eyebrow} ${styles.magicBarMeta}`}>
           Magic Bar · enter your idea and brief Alex in one line
         </div>
       ) : null}

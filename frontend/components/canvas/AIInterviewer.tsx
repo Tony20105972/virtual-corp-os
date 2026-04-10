@@ -239,7 +239,6 @@ export default function AIInterviewer() {
               }
             }}
             placeholder="Add your own direction"
-            autoFocus
             style={etcInputStyle}
           />
         ) : null}
