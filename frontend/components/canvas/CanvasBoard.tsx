@@ -15,10 +15,12 @@ import AgentChat from "./AgentChat"
 import MagicBar from "./MagicBar"
 import AIInterviewer from "./AIInterviewer"
 import CanvasModal from "@/components/strategy/CanvasModal"
+import { CEOBriefingPanel } from "@/components/approval/CEOBriefingPanel"
 import { buildInitialNodes, buildInitialEdges } from "@/lib/canvas/nodeConfig"
 import { useProjectStore } from "@/store/projectStore"
 import { useInterviewStore } from "@/store/interviewStore"
 import { useSSE } from "@/lib/sse/useSSE"
+import { useProjectPolling } from "@/hooks/useProjectPolling"
 import type { AgentNodeData } from "./AgentNode"
 import type { Node } from "@xyflow/react"
 import styles from "./boardroom.module.css"
@@ -38,14 +40,24 @@ export default function CanvasBoard() {
   const edges = useMemo(() => buildInitialEdges(), [])
   const projectId = useProjectStore((s) => s.projectId)
   const prdJson = useProjectStore((s) => s.prd_json)
+  const strategySummary = useProjectStore((s) => s.strategySummary)
+  const strategyReportReady = useProjectStore((s) => s.strategyReportReady)
+  const projectStatus = useProjectStore((s) => s.status)
   const nodeStatuses = useProjectStore((s) => s.nodeStatuses)
   const interviewStatus = useInterviewStore((s) => s.status)
   const idea = useInterviewStore((s) => s.idea)
 
   useSSE(projectId)
+  useProjectPolling(projectId)
 
-  const isWarRoom = interviewStatus === "done"
-  const currentStage = prdJson ? "CEO Approval Ready" : isWarRoom ? "Company Executing" : "Boardroom Intake"
+  const isWarRoom = interviewStatus === "done" || projectStatus !== "intake_pending"
+  const currentStage = strategyReportReady
+    ? "CEO Briefing Ready"
+    : projectStatus === "strategy_running"
+      ? "Strategy Report In Progress"
+      : isWarRoom
+        ? "Interview In Progress"
+        : "Boardroom Intake"
 
   return (
     <div className={styles.boardroom}>
@@ -133,20 +145,24 @@ export default function CanvasBoard() {
                 <div className={styles.briefItem}>
                   <span className={styles.briefLabel}>Strategy Status</span>
                   <span className={styles.briefValue}>
-                    {prdJson
-                      ? "Strategic brief is ready. Open the strategy report for a full review."
-                      : "Your agents will turn the brief into a strategy memo and execution canvas."}
+                    {strategyReportReady
+                      ? "전략 보고서가 준비되었습니다. 보고서를 검토한 뒤 개발팀 착수를 승인할 수 있습니다."
+                      : projectStatus === "strategy_running"
+                        ? "Alex가 전략 보고서를 정리 중입니다."
+                        : "먼저 아이디어를 입력하고 AI Interviewer 질문에 답하면 CEO 브리핑이 만들어집니다."}
                   </span>
                 </div>
                 <div className={styles.briefItem}>
                   <span className={styles.briefLabel}>Boardroom Signal</span>
                   <span className={styles.briefValue}>
-                    {isWarRoom
-                      ? "The canvas is active. Strategy can now move toward approval and build."
-                      : "Answer five decisions quickly so the room can move from intent to execution."}
+                    {strategyReportReady
+                      ? "전략 없는 승인은 금지됩니다. 보고서를 먼저 읽고, 그 다음 개발 착수를 결정하세요."
+                      : "질문은 사업 아이디어 유형에 맞춰 동적으로 바뀝니다."}
                   </span>
                 </div>
               </div>
+
+              <CEOBriefingPanel />
 
               <div className={styles.summaryBox}>
                 <div className={styles.summaryLine}>

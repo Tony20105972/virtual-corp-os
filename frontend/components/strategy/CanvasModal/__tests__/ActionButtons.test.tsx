@@ -6,7 +6,9 @@ import { useProjectStore } from "@/store/projectStore"
 
 describe("ActionButtons", () => {
   beforeEach(() => {
-    useProjectStore.setState({ canvasModalOpen: true })
+    useProjectStore.setState({
+      canvasModalOpen: true,
+    })
   })
 
   it("closes the modal on secondary action", () => {
@@ -15,9 +17,9 @@ describe("ActionButtons", () => {
     expect(useProjectStore.getState().canvasModalOpen).toBe(false)
   })
 
-  it("closes the modal on approval action", () => {
+  it("returns to briefing by closing the modal", () => {
     render(<ActionButtons />)
-    fireEvent.click(screen.getByRole("button", { name: "승인 진행 →" }))
+    fireEvent.click(screen.getByRole("button", { name: "CEO 브리핑으로 돌아가기" }))
     expect(useProjectStore.getState().canvasModalOpen).toBe(false)
   })
 })

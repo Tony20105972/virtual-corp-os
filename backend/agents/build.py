@@ -1,5 +1,6 @@
 import logging
 from graph.state import ProjectState
+from core.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +27,20 @@ async def build_node(state: ProjectState) -> dict:
         dummy_github_repo = f"https://github.com/ghost-founder/{project_id[:8]}"
         # ───────────────────────────────────────────────────────────
 
+        try:
+            get_supabase_client().table("projects").update({
+                "status": "awaiting_payment_or_deploy_approval",
+                "current_node": "build",
+            }).eq("project_id", project_id).execute()
+        except Exception as exc:
+            logger.warning("[build] status sync failed project_id=%s error=%s", project_id, exc)
+
         return {
             "code_files": dummy_code_files,
             "github_repo": dummy_github_repo,
             "build_errors": [],                                # 성공 시 반드시 빈 리스트
             "build_retry_count": state.get("build_retry_count", 0) + 1,
+            "status": "awaiting_payment_or_deploy_approval",
             "current_node": "deploy",
             "logs": [
                 "Jamie: 코드 생성을 시작합니다...",

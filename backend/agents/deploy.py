@@ -1,5 +1,6 @@
 import logging
 from graph.state import ProjectState
+from core.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +20,20 @@ async def deploy_node(state: ProjectState) -> dict:
         dummy_vercel_project_id = f"prj_{project_id[:12]}"
         # ───────────────────────────────────────────────────────────
 
+        try:
+            get_supabase_client().table("projects").update({
+                "status": "complete",
+                "current_node": "deploy",
+                "deploy_url": dummy_deploy_url,
+            }).eq("project_id", project_id).execute()
+        except Exception as exc:
+            logger.warning("[deploy] status sync failed project_id=%s error=%s", project_id, exc)
+
         return {
             "deploy_url": dummy_deploy_url,
             "preview_url": dummy_preview_url,
             "vercel_project_id": dummy_vercel_project_id,
+            "status": "complete",
             "current_node": "complete",
             "logs": [
                 "Sam: Vercel 배포를 시작합니다...",

@@ -3,13 +3,14 @@ import logging
 import uuid
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from graph.builder import get_graph
 from api.stream import router as stream_router
 from api.interview import router as interview_router
+from api.projects import router as projects_router
 from core.supabase_client import get_supabase_client
 from core.queue_store import project_queues
 
@@ -31,6 +32,7 @@ app.add_middleware(
 
 app.include_router(stream_router)
 app.include_router(interview_router)
+app.include_router(projects_router)
 
 
 # ──────────────────────────────────────────
@@ -40,6 +42,8 @@ class RunRequest(BaseModel):
     idea: str
     user_id: Optional[str] = None
     interview_answers: list[dict] = []
+    business_type: Optional[str] = None
+    category_tags: list[str] = []
 
 
 class ResumeStrategyRequest(BaseModel):
@@ -52,38 +56,52 @@ class ResumeDeployRequest(BaseModel):
     payment_done: bool
 
 
+def build_graph_config(project_id: str):
+    return {
+        "configurable": {
+            "thread_id": project_id,
+            "log_queue": project_queues.setdefault(project_id, asyncio.Queue(maxsize=100)),
+        }
+    }
+
+
+async def execute_graph(initial_state: dict, config: dict):
+    graph = get_graph()
+    await graph.ainvoke(initial_state, config=config)
+
+
 # ──────────────────────────────────────────
 # POST /run
 # ──────────────────────────────────────────
 @app.post("/run")
-async def run(body: RunRequest):
-    graph = get_graph()
+async def run(body: RunRequest, background_tasks: BackgroundTasks):
     project_id = str(uuid.uuid4())
-
-    # 프로젝트 레벨 SSE 큐 생성 (strategy_node → stream 엔드포인트로 전달)
-    project_queues[project_id] = asyncio.Queue(maxsize=100)
-
-    config = {
-        "configurable": {
-            "thread_id": project_id,
-            "log_queue": project_queues[project_id],
-        }
-    }
+    config = build_graph_config(project_id)
 
     initial_state = {
         "project_id": project_id,
         "user_id": body.user_id,
         "raw_idea": body.idea,
         "current_node": "intake",
+        "status": "strategy_running" if body.interview_answers else "interviewing",
         "logs": [],
         "build_errors": [],
         "interview_answers": body.interview_answers,
+        "business_type": body.business_type or "general",
+        "category_tags": body.category_tags,
         "strategy_retry_count": 0,
         "build_retry_count": 0,
         "payment_done": False,
         "ceo_feedback": None,
+        "ceo_approval": "pending",
+        "approval_requested_at": None,
+        "approval_decided_at": None,
+        "revision_count": 0,
+        "revision_history": [],
+        "last_revised_items": [],
         "prd_json": None,
         "strategy_summary": None,
+        "strategy_report_ready": False,
         "code_files": None,
         "github_repo": None,
         "deploy_url": None,
@@ -104,19 +122,32 @@ async def run(body: RunRequest):
             "user_id": body.user_id,
             "raw_idea": body.idea,
             "current_node": "intake",
+            "status": "strategy_running" if body.interview_answers else "interviewing",
+            "business_type": body.business_type or "general",
+            "category_tags": body.category_tags,
+            "revision_count": 0,
+            "revision_history": [],
+            "last_revised_items": [],
+            "strategy_report_ready": False,
+            "ceo_approval": "pending",
         }).execute()
         logger.info("[/run] Supabase project row 생성 완료 project_id=%s", project_id)
     except Exception as e:
         logger.error("[/run] Supabase insert 실패 (파이프라인 계속 진행) error=%s", str(e))
 
-    result = await graph.ainvoke(initial_state, config=config)
+    if body.interview_answers:
+        background_tasks.add_task(execute_graph, initial_state, config)
 
     return {
         "project_id": project_id,
-        "current_node": result.get("current_node"),
-        "prd_json": result.get("prd_json"),
-        "strategy_summary": result.get("strategy_summary"),
-        "logs": result.get("logs", []),
+        "current_node": initial_state["current_node"],
+        "status": initial_state["status"],
+        "revision_count": 0,
+        "last_revised_items": [],
+        "prd_json": None,
+        "strategy_summary": None,
+        "strategy_report_ready": False,
+        "logs": [],
     }
 
 
@@ -133,21 +164,22 @@ async def resume_strategy(project_id: str, body: ResumeStrategyRequest):
         )
 
     graph = get_graph()
-    config = {"configurable": {"thread_id": project_id}}
+    config = build_graph_config(project_id)
 
     if body.approved:
         # CEO 승인 → build 노드 진입 (interrupt ① 해제)
         retried = False
         logger.info("[/resume/strategy] project_id=%s approved=true", project_id)
+        graph.update_state(config, {"ceo_approval": "approved", "status": "build_pending"})
     else:
-        # CEO 거절 → ceo_feedback 주입 후 strategy 재실행
+        # CEO 수정 요청 → ceo_feedback 주입 후 strategy 재실행
         retried = True
         logger.info(
             "[/resume/strategy] project_id=%s approved=false feedback=%s",
             project_id,
             body.feedback[:40] if body.feedback else "",
         )
-        graph.update_state(config, {"ceo_feedback": body.feedback})
+        graph.update_state(config, {"ceo_feedback": body.feedback, "ceo_approval": "revise", "status": "strategy_running"})
 
     result = await graph.ainvoke(None, config=config)
 
@@ -177,11 +209,11 @@ async def resume_deploy(project_id: str, body: ResumeDeployRequest):
         )
 
     graph = get_graph()
-    config = {"configurable": {"thread_id": project_id}}
+    config = build_graph_config(project_id)
 
     logger.info("[/resume/deploy] project_id=%s", project_id)
 
-    graph.update_state(config, {"payment_done": True})
+    graph.update_state(config, {"payment_done": True, "status": "deploying"})
     result = await graph.ainvoke(None, config=config)
 
     return {

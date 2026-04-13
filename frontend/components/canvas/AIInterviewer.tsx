@@ -3,11 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { useInterviewStore } from "@/store/interviewStore"
 import { useProjectStore } from "@/store/projectStore"
-import {
-  BOARDROOM_QUESTIONS,
-  composeStrategyAnswer,
-  ETC_OPTION_VALUE,
-} from "@/lib/strategy/questions"
+import { OTHER_OPTION_VALUE, buildAnswerPayload, isQuestionAnswered } from "@/lib/strategy/questions"
+import type { InterviewQuestion } from "@/types/interview"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
@@ -20,6 +17,7 @@ const TRANSITIONS = [
 interface StrategySelection {
   selectedOption: string
   etcText: string
+  shortText: string
 }
 
 function DotIndicator({ current, total }: { current: number; total: number }) {
@@ -43,33 +41,40 @@ function DotIndicator({ current, total }: { current: number; total: number }) {
 }
 
 export default function AIInterviewer() {
-  const { status, questions, answers, currentQ, idea, addAnswer, nextQuestion, setStatus } =
+  const { status, businessType, tags, questions, answers, currentQ, idea, addAnswer, nextQuestion, setStatus } =
     useInterviewStore()
   const setProjectId = useProjectStore((s) => s.setProjectId)
   const setPrdJson = useProjectStore((s) => s.setPrdJson)
+  const setProjectStatus = useProjectStore((s) => s.setStatus)
+  const setRevisionCount = useProjectStore((s) => s.setRevisionCount)
+  const setLastRevisedItems = useProjectStore((s) => s.setLastRevisedItems)
+  const setStrategySummary = useProjectStore((s) => s.setStrategySummary)
+  const setStrategyReportReady = useProjectStore((s) => s.setStrategyReportReady)
+  const setBusinessContext = useProjectStore((s) => s.setBusinessContext)
+  const setNodeStatus = useProjectStore((s) => s.setNodeStatus)
 
   const [transitionMsg, setTransitionMsg] = useState("")
   const [selections, setSelections] = useState<Record<string, StrategySelection>>({})
 
-  const currentPrompt = questions[currentQ]
-  const currentQuestion = useMemo(() => BOARDROOM_QUESTIONS[currentQ], [currentQ])
+  const currentQuestion = useMemo<InterviewQuestion | undefined>(() => questions[currentQ], [currentQ, questions])
+  const currentPrompt = currentQuestion?.title
   const currentSelection = currentQuestion
-    ? selections[currentQuestion.id] ?? { selectedOption: "", etcText: "" }
-    : { selectedOption: "", etcText: "" }
+    ? selections[currentQuestion.id] ?? { selectedOption: "", etcText: "", shortText: "" }
+    : { selectedOption: "", etcText: "", shortText: "" }
 
   useEffect(() => {
     if (status !== "questioning") return
 
     setSelections((prev) => {
       const next = { ...prev }
-      for (const question of BOARDROOM_QUESTIONS) {
+      for (const question of questions) {
         if (!next[question.id]) {
-          next[question.id] = { selectedOption: "", etcText: "" }
+          next[question.id] = { selectedOption: "", etcText: "", shortText: "" }
         }
       }
       return next
     })
-  }, [status])
+  }, [questions, status])
 
   const updateSelection = (patch: Partial<StrategySelection>) => {
     if (!currentQuestion) return
@@ -79,6 +84,7 @@ export default function AIInterviewer() {
       [currentQuestion.id]: {
         selectedOption: currentSelection.selectedOption,
         etcText: currentSelection.etcText,
+        shortText: currentSelection.shortText,
         ...patch,
       },
     }))
@@ -87,42 +93,52 @@ export default function AIInterviewer() {
   const handleAnswer = async () => {
     if (!currentQuestion) return
 
-    const option = currentQuestion.options.find(
+    const option = (currentQuestion.options ?? []).find(
       (item) => item.value === currentSelection.selectedOption
     )
+    if (currentQuestion.type !== "short_text" && !option) return
+    if (!isQuestionAnswered(currentQuestion, currentSelection)) return
 
-    if (!option) return
-    if (option.value === ETC_OPTION_VALUE && !currentSelection.etcText.trim()) return
+    const answerPayload = buildAnswerPayload(currentQuestion, currentSelection)
+    addAnswer(answerPayload)
 
-    const answerText = composeStrategyAnswer(option.label, currentSelection.etcText)
-    addAnswer(answerText)
-
-    if (currentQ < BOARDROOM_QUESTIONS.length - 1) {
+    if (currentQ < questions.length - 1) {
       nextQuestion()
       return
     }
 
     const msg = TRANSITIONS[Math.floor(Math.random() * TRANSITIONS.length)]
     setTransitionMsg(msg)
-    setStatus("assembling")
+    setStatus("strategy_running")
+    setProjectStatus("strategy_running")
+    setStrategyReportReady(false)
+    setNodeStatus("strategy", "processing")
 
     try {
-      const allAnswers = [...answers, answerText].map((answer, index) => ({
-        q: questions[index] ?? BOARDROOM_QUESTIONS[index]?.prompt ?? `Question ${index + 1}`,
-        a: answer,
-      }))
+      const allAnswers = [...answers, answerPayload]
 
       const res = await fetch(`${API_URL}/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea, interview_answers: allAnswers }),
+        body: JSON.stringify({
+          idea,
+          interview_answers: allAnswers,
+          business_type: businessType,
+          category_tags: tags,
+        }),
       })
       const data = await res.json()
       setProjectId(data.project_id)
-      setPrdJson(data.prd_json ?? null)
+      setPrdJson(null)
+      setStrategySummary(null)
+      setBusinessContext({ businessType: businessType ?? null, categoryTags: tags })
+      setProjectStatus(data.status ?? "strategy_running")
+      setRevisionCount(data.revision_count ?? 0)
+      setLastRevisedItems(data.last_revised_items ?? [])
       setStatus("done")
     } catch (err) {
       console.error("[AIInterviewer] /run 실패:", err)
+      setProjectStatus("error")
       setStatus("done")
     }
   }
@@ -141,13 +157,13 @@ export default function AIInterviewer() {
     )
   }
 
-  if (status === "assembling") {
+  if (status === "strategy_running") {
     return (
       <div style={overlayStyle}>
         <div style={interviewerShellStyle}>
-          <div style={eyebrowStyle}>Company In Motion</div>
+          <div style={eyebrowStyle}>Strategy In Progress</div>
           <div style={titleStyle}>{transitionMsg}</div>
-          <div style={supportStyle}>Strategy, PRD, and execution canvas are syncing.</div>
+          <div style={supportStyle}>Alex가 전략 보고서, PRD, CEO 브리핑을 동시에 정리하고 있습니다.</div>
         </div>
       </div>
     )
@@ -179,69 +195,89 @@ export default function AIInterviewer() {
           <div style={{ flex: 1 }}>
             <div style={eyebrowStyle}>Alex · Strategy Consultant</div>
             <div style={titleStyle}>{currentPrompt}</div>
-            <div style={supportStyle}>Fast decisions only. Pick one direction and keep moving.</div>
+            <div style={supportStyle}>
+              {currentQuestion.description || "빠르게 답할 수 있는 정보만 모아서 CEO 브리핑 품질을 높입니다."}
+            </div>
           </div>
         </div>
 
-        <DotIndicator current={currentQ} total={BOARDROOM_QUESTIONS.length} />
+        <DotIndicator current={currentQ} total={questions.length} />
 
-        <div
-          role="radiogroup"
-          aria-label={currentPrompt}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            gap: 10,
-          }}
-        >
-          {currentQuestion.options.map((option) => {
-            const selected = currentSelection.selectedOption === option.value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() =>
-                  updateSelection({
-                    selectedOption: option.value,
-                    etcText: option.value === ETC_OPTION_VALUE ? currentSelection.etcText : "",
-                  })
-                }
-                style={{
-                  border: selected
-                    ? "1px solid rgba(96,165,250,0.45)"
-                    : "1px solid rgba(255,255,255,0.08)",
-                  background: selected ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.03)",
-                  color: selected ? "#eff6ff" : "#cbd5e1",
-                  borderRadius: 16,
-                  padding: "14px 14px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  fontFamily: "'Pretendard', sans-serif",
-                  fontSize: 14,
-                  lineHeight: 1.3,
-                  transition: "all 0.2s ease",
-                }}
-              >
-                {option.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {currentSelection.selectedOption === ETC_OPTION_VALUE ? (
+        {currentQuestion.type === "short_text" ? (
           <input
-            value={currentSelection.etcText}
-            onChange={(event) => updateSelection({ etcText: event.target.value })}
+            value={currentSelection.shortText}
+            onChange={(event) => updateSelection({ shortText: event.target.value })}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault()
                 void handleAnswer()
               }
             }}
-            placeholder="Add your own direction"
+            placeholder={currentQuestion.placeholder || "짧게 입력해주세요"}
             style={etcInputStyle}
           />
-        ) : null}
+        ) : (
+          <>
+            <div
+              role="radiogroup"
+              aria-label={currentPrompt}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: 10,
+              }}
+            >
+              {(currentQuestion.options ?? []).map((option) => {
+                const selected = currentSelection.selectedOption === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      updateSelection({
+                        selectedOption: option.value,
+                        etcText: option.value === OTHER_OPTION_VALUE ? currentSelection.etcText : "",
+                      })
+                    }
+                    style={{
+                      border: selected
+                        ? "1px solid rgba(96,165,250,0.45)"
+                        : "1px solid rgba(255,255,255,0.08)",
+                      background: selected ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.03)",
+                      color: selected ? "#eff6ff" : "#cbd5e1",
+                      borderRadius: 16,
+                      padding: "14px 14px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      fontFamily: "'Pretendard', sans-serif",
+                      fontSize: 14,
+                      lineHeight: 1.3,
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {currentQuestion.type === "single_select_with_other" &&
+            currentSelection.selectedOption === OTHER_OPTION_VALUE ? (
+              <input
+                value={currentSelection.etcText}
+                onChange={(event) => updateSelection({ etcText: event.target.value })}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    void handleAnswer()
+                  }
+                }}
+                placeholder="직접 입력해주세요"
+                style={etcInputStyle}
+              />
+            ) : null}
+          </>
+        )}
 
         <div
           style={{
@@ -253,16 +289,12 @@ export default function AIInterviewer() {
           }}
         >
           <div style={footerHintStyle}>
-            {currentQ + 1} of {BOARDROOM_QUESTIONS.length} strategic decisions
+            {currentQ + 1} of {questions.length} strategic decisions
           </div>
           <button
             type="button"
             onClick={() => void handleAnswer()}
-            disabled={
-              !currentSelection.selectedOption ||
-              (currentSelection.selectedOption === ETC_OPTION_VALUE &&
-                !currentSelection.etcText.trim())
-            }
+            disabled={!isQuestionAnswered(currentQuestion, currentSelection)}
             style={{
               border: "none",
               borderRadius: 999,
@@ -274,15 +306,10 @@ export default function AIInterviewer() {
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               cursor: "pointer",
-              opacity:
-                !currentSelection.selectedOption ||
-                (currentSelection.selectedOption === ETC_OPTION_VALUE &&
-                  !currentSelection.etcText.trim())
-                  ? 0.45
-                  : 1,
+              opacity: isQuestionAnswered(currentQuestion, currentSelection) ? 1 : 0.45,
             }}
           >
-            {currentQ === BOARDROOM_QUESTIONS.length - 1 ? "Assemble Company" : "Continue"}
+            {currentQ === questions.length - 1 ? "Start Strategy Report" : "Continue"}
           </button>
         </div>
       </div>

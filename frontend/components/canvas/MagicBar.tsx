@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useInterviewStore } from "@/store/interviewStore"
-import { BOARDROOM_QUESTIONS } from "@/lib/strategy/questions"
+import { useProjectStore } from "@/store/projectStore"
 import styles from "./boardroom.module.css"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
@@ -17,7 +17,15 @@ export default function MagicBar({
   className,
 }: MagicBarProps) {
   const [input, setInput] = useState("")
-  const { status, setIdea, setQuestions, setStatus } = useInterviewStore()
+  const { status, setIdea, setPlan, setStatus } = useInterviewStore()
+  const setBusinessContext = useProjectStore((state) => state.setBusinessContext)
+  const setProjectId = useProjectStore((state) => state.setProjectId)
+  const setProjectStatus = useProjectStore((state) => state.setStatus)
+  const setNodeStatus = useProjectStore((state) => state.setNodeStatus)
+  const setPollingError = useProjectStore((state) => state.setPollingError)
+  const setPrdJson = useProjectStore((state) => state.setPrdJson)
+  const setStrategySummary = useProjectStore((state) => state.setStrategySummary)
+  const setStrategyReportReady = useProjectStore((state) => state.setStrategyReportReady)
 
   if (status !== "idle" && status !== "done") return null
 
@@ -35,19 +43,35 @@ export default function MagicBar({
     }
 
     setIdea(trimmed)
+    setProjectId(null)
+    setPollingError(null)
+    setPrdJson(null)
+    setStrategySummary(null)
+    setStrategyReportReady(false)
     setStatus("loading")
+    setProjectStatus("interviewing")
+    setNodeStatus("intake", "processing")
 
     try {
-      await fetch(`${API_URL}/interview/questions`, {
+      const res = await fetch(`${API_URL}/interview/questions`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ idea: trimmed }),
       })
+      const data = await res.json()
+      setPlan(data)
+      setBusinessContext({
+        businessType: data.business_type,
+        categoryTags: data.tags ?? [],
+      })
+      setNodeStatus("intake", "done")
     } catch (err) {
       console.error("[MagicBar] 질문 생성 실패:", err)
+      setStatus("idle")
+      setProjectStatus("error")
+      setNodeStatus("intake", "error")
+      return
     }
-
-    setQuestions(BOARDROOM_QUESTIONS.map((question) => question.prompt))
     setInput("")
   }
 

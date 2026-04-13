@@ -8,6 +8,7 @@ from agents.intake import intake_node
 from agents.strategy import strategy_node
 from agents.build import build_node
 from agents.deploy import deploy_node
+from graph.nodes.approval_router import approval_decision_router
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ async def complete_node(state: ProjectState) -> dict:
         logger.info("[complete] project_id=%s", state.get("project_id"))
         return {
             "current_node": "complete",
+            "status": "complete",
             "logs": [f"Sam: 배포 완료! 🚀 {state.get('deploy_url', '')}"],
         }
     except Exception as e:
@@ -73,6 +75,10 @@ async def error_node(state: ProjectState) -> dict:
         }
 
 
+async def approval_decision_node(_: ProjectState) -> dict:
+    return {}
+
+
 # ──────────────────────────────────────────
 # route_after_build — 유일한 조건부 라우터
 # ──────────────────────────────────────────
@@ -83,7 +89,7 @@ def route_after_build(state: ProjectState) -> str:
         return "build"    # 재시도
     if errors and retry >= 3:
         return "error"    # 재시도 한계 초과
-    return "deploy"       # 성공 → interrupt ②에서 대기
+    return "deploy"       # 성공 → deploy 직전 대기
 
 
 # ──────────────────────────────────────────
@@ -95,6 +101,7 @@ def compile_graph():
     # 노드 등록
     builder.add_node("intake", intake_node)
     builder.add_node("strategy", strategy_node)
+    builder.add_node("approval_decision", approval_decision_node)
     builder.add_node("build", build_node)
     builder.add_node("deploy", deploy_node)
     builder.add_node("complete", complete_node)
@@ -103,7 +110,12 @@ def compile_graph():
     # 엣지
     builder.add_edge(START, "intake")
     builder.add_edge("intake", "strategy")
-    builder.add_edge("strategy", "build")           # interrupt ①: build 직전 대기
+    builder.add_edge("strategy", "approval_decision")
+    builder.add_conditional_edges(
+        "approval_decision",
+        approval_decision_router,
+        {"build": "build", "strategy": "strategy"},
+    )
     builder.add_conditional_edges(
         "build",
         route_after_build,
@@ -115,7 +127,7 @@ def compile_graph():
 
     return builder.compile(
         checkpointer=get_checkpointer(),
-        interrupt_before=["build", "deploy"],       # CEO 승인 포인트 2개
+        interrupt_before=["approval_decision", "deploy"],
     )
 
 

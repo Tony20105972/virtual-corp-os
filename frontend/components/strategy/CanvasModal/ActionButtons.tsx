@@ -6,9 +6,8 @@ import styles from "./styles.module.css"
 export function ActionButtons() {
   const closeCanvasModal = useProjectStore((s) => s.closeCanvasModal)
 
-  const handleApprovalProceed = () => {
+  const handleReturnToBriefing = () => {
     closeCanvasModal()
-    console.log("[Day11] CEO approval modal placeholder")
   }
 
   return (
@@ -23,9 +22,9 @@ export function ActionButtons() {
       <button
         type="button"
         className={styles.buttonPrimary}
-        onClick={handleApprovalProceed}
+        onClick={handleReturnToBriefing}
       >
-        승인 진행 →
+        CEO 브리핑으로 돌아가기
       </button>
     </footer>
   )
