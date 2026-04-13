@@ -11,20 +11,20 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Python 패키지 캐싱을 위해 requirements.txt만 먼저 복사
-COPY requirements.txt .
+# [수정] 경로에 backend/ 를 명시해줘야 합니다.
+COPY backend/requirements.txt .
 
 # 의존성 설치 (캐시 활용)
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 애플리케이션 코드 복사
-COPY . .
+# [수정] 소스 코드도 backend 폴더에서 가져옵니다.
+COPY backend/ .
 
 # 포트 노출 (Railway는 $PORT 환경변수 자동 설정)
 EXPOSE 8000
 
-# Health check (선택사항)
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
