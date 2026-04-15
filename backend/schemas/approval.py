@@ -9,21 +9,55 @@ class RevisionRequest(TypedDict):
     timestamp: str
 
 
-class StrategySummary(TypedDict):
+BusinessType = Literal[
+    "saas",
+    "commerce",
+    "marketplace",
+    "service",
+    "media",
+    "community",
+    "other",
+]
+
+
+class ReportBodySection(TypedDict):
+    title: str
+    body: str
+
+
+class ReportItemsSection(TypedDict):
+    title: str
+    items: list[str]
+
+
+class StrategyReportSections(TypedDict):
+    problem: ReportBodySection
+    customer: ReportBodySection
+    solution: ReportBodySection
+    why_now: ReportBodySection
+    business_model: ReportBodySection
+    mvp_scope: ReportItemsSection
+    differentiators: ReportItemsSection
+    risks: ReportItemsSection
+    go_to_market: ReportBodySection
+
+
+class CEOBrief(TypedDict):
     headline: str
-    narrative: str
-    target_customer: str
-    value_proposition: str
-    revenue_model: str
-    mvp_scope: list[str]
+    approval_note: str
+
+
+class StrategyReport(TypedDict):
+    strategy_summary: str
+    business_type: BusinessType
+    category_tags: list[str]
+    report: StrategyReportSections
+    ceo_brief: CEOBrief
 
 
 class ApprovalState(TypedDict, total=False):
     ceo_approval: Optional[str]
-    approval_requested_at: Optional[str]
-    approval_decided_at: Optional[str]
     revision_count: int
-    revision_history: list[RevisionRequest]
     last_revised_items: list[str]
     strategy_report_ready: bool
 
@@ -31,16 +65,17 @@ class ApprovalState(TypedDict, total=False):
 ProjectStatus = Literal[
     "intake_pending",
     "interviewing",
-    "strategy_running",
-    "strategy_ready",
+    "strategy_processing",
+    "strategy_error",
     "awaiting_ceo_approval",
     "build_pending",
     "building",
-    "build_ready",
-    "awaiting_payment_or_deploy_approval",
+    "build_error",
+    "deploy_pending",
     "deploying",
-    "complete",
-    "error",
+    "deploy_error",
+    "live",
+    "archived",
 ]
 
 

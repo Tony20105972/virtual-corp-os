@@ -44,8 +44,8 @@ async def complete_node(state: ProjectState) -> dict:
     try:
         logger.info("[complete] project_id=%s", state.get("project_id"))
         return {
-            "current_node": "complete",
-            "status": "complete",
+            "current_node": "live",
+            "status": "live",
             "logs": [f"Sam: 배포 완료! 🚀 {state.get('deploy_url', '')}"],
         }
     except Exception as e:

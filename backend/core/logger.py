@@ -10,6 +10,8 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Literal
 
+from core.project_repository import insert_project_event
+
 _stdlib_logger = logging.getLogger(__name__)
 
 KST = timezone(timedelta(hours=9))
@@ -24,9 +26,10 @@ class AgentLogger:
         await log.success("Business canvas complete ✓")
     """
 
-    def __init__(self, agent_name: str, queue: asyncio.Queue) -> None:
+    def __init__(self, agent_name: str, queue: asyncio.Queue, project_id: str | None = None) -> None:
         self.agent_name = agent_name
         self._queue = queue
+        self.project_id = project_id
 
     # ── public API ──────────────────────────────────────────────────────────
     async def info(self, message: str) -> None:
@@ -58,3 +61,14 @@ class AgentLogger:
             _stdlib_logger.debug(
                 "AgentLogger queue full — log skipped: %s", message
             )
+        if self.project_id:
+            try:
+                insert_project_event(
+                    self.project_id,
+                    agent_name=self.agent_name,
+                    event_type=f"log_{level}",
+                    message=message,
+                    payload_json={"level": level, "timestamp": ts},
+                )
+            except Exception:
+                _stdlib_logger.exception("AgentLogger failed to persist project_event")

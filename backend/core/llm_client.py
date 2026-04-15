@@ -17,6 +17,9 @@ from core.settings import settings
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_STRATEGY_MAX_TOKENS = 900
+FALLBACK_STRATEGY_MAX_TOKENS = 600
+
 
 # ── 노드별 모델 매핑 ─────────────────────────────────────────────────
 MODELS: dict[str, str] = {
@@ -29,7 +32,7 @@ MODELS: dict[str, str] = {
 # ── 노드별 max_tokens 상한 (절대 초과 금지) ──────────────────────────
 MAX_TOKENS: dict[str, int] = {
     "intake":   1000,   # MiniMax M2: reasoning 모델이라 thinking tokens 포함
-    "strategy": 1500,
+    "strategy": DEFAULT_STRATEGY_MAX_TOKENS,
     "build":    4000,
     "deploy":   300,
 }
@@ -100,6 +103,22 @@ def get_model(node: str) -> str:
 
 def get_max_tokens(node: str) -> int:
     return MAX_TOKENS.get(node, 500)
+
+
+def is_budget_limit_error(err: Exception) -> bool:
+    status_code = getattr(err, "status_code", None)
+    code = getattr(err, "code", None)
+    message = str(err).lower()
+
+    if status_code == 402 or code == 402:
+        return True
+
+    body = getattr(err, "body", None)
+    if isinstance(body, dict):
+        error_obj = body.get("error", {})
+        message = f"{message} {str(error_obj.get('message', '')).lower()} {str(error_obj.get('code', '')).lower()}"
+
+    return "requires more credits" in message or "fewer max_tokens" in message
 
 
 # ── OpenRouter 필수 헤더 ──────────────────────────────────────────────

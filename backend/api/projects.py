@@ -1,13 +1,17 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from core.project_repository import (
+    get_project,
+    insert_payment,
+    insert_project_event,
+    update_project,
+)
 from core.queue_store import project_queues
-from core.supabase_client import get_supabase_client
 from graph.builder import get_graph
 from schemas.approval import FEEDBACK_OPTIONS
 
@@ -15,10 +19,6 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 logger = logging.getLogger(__name__)
 
 ALL_AFFECTED_ITEMS = ["vp", "cs", "cr", "ch", "rs", "kr", "ka", "kp", "cs_cost"]
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def build_graph_config(project_id: str):
@@ -46,25 +46,21 @@ def get_feedback_option(value: str) -> dict:
 
 
 def get_project_or_404(project_id: str) -> dict:
-    response = (
-        get_supabase_client()
-        .table("projects")
-        .select(
-            "project_id,status,raw_idea,prd_json,strategy_summary,business_type,category_tags,"
-            "strategy_report_ready,revision_count,revision_history,last_revised_items,"
-            "ceo_approval,approval_requested_at,approval_decided_at,updated_at,payment_done"
-        )
-        .eq("project_id", project_id)
-        .limit(1)
-        .execute()
+    project = get_project(
+        project_id,
+        columns=(
+            "project_id,status,raw_idea,current_node,prd_json,strategy_summary,"
+            "strategy_report_json,business_type,category_tags,strategy_report_ready,"
+            "revision_count,last_revised_items,ceo_approval,updated_at,payment_done,"
+            "deploy_url,error_message"
+        ),
     )
-    rows = response.data or []
-    if not rows:
+    if not project:
         raise HTTPException(
             status_code=404,
             detail={"error": "Project not found", "code": "NOT_FOUND", "project_id": project_id},
         )
-    return rows[0]
+    return project
 
 
 def update_graph_state(project_id: str, updates: dict) -> None:
@@ -115,21 +111,28 @@ async def approve_project(project_id: str, background_tasks: BackgroundTasks):
             },
         )
 
-    decided_at = utc_now_iso()
-    get_supabase_client().table("projects").update(
+    update_project(
+        project_id,
         {
             "status": "build_pending",
             "ceo_approval": "approved",
-            "approval_decided_at": decided_at,
-        }
-    ).eq("project_id", project_id).execute()
+            "current_node": "build",
+            "error_message": None,
+        },
+    )
+    insert_project_event(
+        project_id,
+        agent_name="CEO",
+        event_type="approval_approved",
+        message="CEO가 전략 보고서를 승인했습니다.",
+        payload_json={"status": "build_pending"},
+    )
 
     update_graph_state(
         project_id,
         {
             "status": "build_pending",
             "ceo_approval": "approved",
-            "approval_decided_at": decided_at,
         },
     )
     background_tasks.add_task(resume_graph, project_id)
@@ -138,7 +141,7 @@ async def approve_project(project_id: str, background_tasks: BackgroundTasks):
         "status": "build_pending",
         "message": "CEO 승인 완료. 개발팀이 MVP 착수 준비에 들어갑니다.",
         "project_id": project_id,
-        "updated_at": decided_at,
+        "updated_at": get_project_or_404(project_id).get("updated_at"),
     }
 
 
@@ -170,37 +173,38 @@ async def request_revision(project_id: str, request: ReviseRequest, background_t
     feedback_opt = get_feedback_option(request.feedback_option)
     affected_items = feedback_opt["affectedItems"] or ALL_AFFECTED_ITEMS
     revision_count = int(project.get("revision_count") or 0) + 1
-    decided_at = utc_now_iso()
-    new_history = list(project.get("revision_history") or [])
-    new_history.append(
+    update_project(
+        project_id,
         {
-            "items": affected_items,
-            "reason": feedback_opt["label"],
-            "custom_feedback": request.custom_feedback,
-            "timestamp": decided_at,
-        }
-    )
-
-    get_supabase_client().table("projects").update(
-        {
-            "status": "strategy_running",
-            "ceo_approval": "revise",
-            "approval_decided_at": decided_at,
+            "status": "strategy_processing",
+            "ceo_approval": "rejected",
+            "current_node": "strategy",
             "revision_count": revision_count,
-            "revision_history": new_history,
             "last_revised_items": affected_items,
             "strategy_report_ready": False,
+            "error_message": None,
         }
-    ).eq("project_id", project_id).execute()
+    )
+    insert_project_event(
+        project_id,
+        agent_name="CEO",
+        event_type="revision_requested",
+        message="CEO가 전략 수정을 요청했습니다.",
+        payload_json={
+            "affected_items": affected_items,
+            "feedback_option": request.feedback_option,
+            "custom_feedback": request.custom_feedback,
+            "label": feedback_opt["label"],
+        },
+    )
 
     update_graph_state(
         project_id,
         {
-            "status": "strategy_running",
-            "ceo_approval": "revise",
-            "approval_decided_at": decided_at,
+            "status": "strategy_processing",
+            "ceo_approval": "rejected",
+            "ceo_feedback": request.custom_feedback or feedback_opt["promptHint"],
             "revision_count": revision_count,
-            "revision_history": new_history,
             "last_revised_items": affected_items,
             "strategy_report_ready": False,
         },
@@ -208,7 +212,7 @@ async def request_revision(project_id: str, request: ReviseRequest, background_t
     background_tasks.add_task(resume_graph, project_id)
 
     return {
-        "status": "strategy_running",
+        "status": "strategy_processing",
         "message": "CEO 수정 요청을 반영해 전략 보고서를 다시 작성하고 있습니다.",
         "affected_items": affected_items,
         "revision_count": revision_count,
@@ -230,7 +234,7 @@ async def confirm_payment(project_id: str, request: PaymentConfirmRequest, backg
                 "current_status": project["status"],
             },
         )
-    if project["status"] != "awaiting_payment_or_deploy_approval":
+    if project["status"] != "deploy_pending":
         raise HTTPException(
             status_code=409,
             detail={
@@ -241,21 +245,34 @@ async def confirm_payment(project_id: str, request: PaymentConfirmRequest, backg
             },
         )
 
-    approved_at = utc_now_iso()
-    get_supabase_client().table("projects").update(
+    update_project(
+        project_id,
         {
             "status": "deploying",
-            "approval_decided_at": approved_at,
             "payment_done": True,
+            "error_message": None,
         }
-    ).eq("project_id", project_id).execute()
+    )
+    insert_payment(
+        project_id,
+        provider="stripe",
+        session_id=request.stripe_payment_intent_id,
+        status="completed",
+        payload_json={"confirmed": True},
+    )
+    insert_project_event(
+        project_id,
+        agent_name="Finance",
+        event_type="payment_confirmed",
+        message="결제가 확인되어 배포를 시작합니다.",
+        payload_json={"session_id": request.stripe_payment_intent_id},
+    )
 
     update_graph_state(
         project_id,
         {
             "status": "deploying",
             "payment_done": True,
-            "stripe_session_id": request.stripe_payment_intent_id,
         },
     )
     background_tasks.add_task(resume_graph, project_id)
@@ -265,7 +282,7 @@ async def confirm_payment(project_id: str, request: PaymentConfirmRequest, backg
         "message": "배포 승인이 확인되었습니다. 런칭 절차를 진행합니다.",
         "next_node": "deploy",
         "project_id": project_id,
-        "approved_at": approved_at,
+        "approved_at": get_project_or_404(project_id).get("updated_at"),
     }
 
 
@@ -280,10 +297,13 @@ async def get_project_status(project_id: str):
         "category_tags": project.get("category_tags") or [],
         "strategy_report_ready": project.get("strategy_report_ready", False),
         "strategy_summary": project.get("strategy_summary"),
+        "strategy_report_json": project.get("strategy_report_json"),
         "prd_json": project.get("prd_json"),
         "revision_count": project.get("revision_count", 0),
         "last_revised_items": project.get("last_revised_items") or [],
         "ceo_approval": project.get("ceo_approval"),
+        "error_message": project.get("error_message"),
         "updated_at": project.get("updated_at"),
-        "approval_requested_at": project.get("approval_requested_at"),
+        "current_node": project.get("current_node"),
+        "deploy_url": project.get("deploy_url"),
     }

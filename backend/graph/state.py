@@ -1,7 +1,7 @@
 import operator
 from typing import Annotated, Literal, Optional
 from typing_extensions import TypedDict
-from schemas.approval import ProjectStatus, RevisionRequest, StrategySummary
+from schemas.approval import ProjectStatus, StrategyReport
 from schemas.interview import InterviewAnswer
 
 
@@ -24,7 +24,7 @@ class ProjectState(TypedDict, total=False):
         "approval_decision",
         "build",
         "deploy",
-        "complete",
+        "live",
         "error",
     ]
     raw_idea: str
@@ -33,16 +33,14 @@ class ProjectState(TypedDict, total=False):
     strategy_report_ready: bool
 
     # strategy
-    prd_json: Optional[dict]           # 9개 키 고정: VP/CS/CH/CR/R$/KR/KA/KP/C$
-    strategy_summary: Optional[StrategySummary]
+    prd_json: Optional[dict]
+    strategy_summary: Optional[str]
+    strategy_report_json: Optional[StrategyReport]
     ceo_feedback: Optional[str]        # 승인 후 반드시 None으로 초기화
     strategy_retry_count: int          # max 3
     status: ProjectStatus
     ceo_approval: Optional[str]
-    approval_requested_at: Optional[str]
-    approval_decided_at: Optional[str]
     revision_count: int
-    revision_history: list[RevisionRequest]
     last_revised_items: list[str]
 
     # build
@@ -52,12 +50,9 @@ class ProjectState(TypedDict, total=False):
 
     # deploy
     deploy_url: Optional[str]
-    preview_url: Optional[str]
-    vercel_project_id: Optional[str]
 
     # payment
     payment_done: bool
-    stripe_session_id: Optional[str]
 
     # error
     error_message: Optional[str]
